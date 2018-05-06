@@ -11,21 +11,17 @@ from app.ascii import birthday_2017, ss_title
 from app.ss import ss_free
 from app import donation
 from flask import render_template, send_from_directory, abort
+from apscheduler.schedulers.background import BackgroundScheduler
 
-PERIOD = int(os.environ.get('PERIOD', 300))
+
 servers = [{'data': [], 'info': {'message': '别着急，正在爬数据，十分钟后再回来吧：）', 'url': 'http://ss.pythonic.life', 'name': '免费 ShadowSocks 帐号分享'}}]
 curtime = time.ctime()
 
-# decoded = list()
-# for i in servers:
-#     for j in i['data']:
-#         decoded.append(j['ssr_uri'])
-# decoded = '\n'.join(decoded)
-# encoded = base64.urlsafe_b64encode(bytes(decoded, 'utf-8'))
 encoded = ''
 full_encoded = ''
 jsons = list()
 full_jsons = list()
+scheduler = BackgroundScheduler()
 
 
 def update_servers():
@@ -53,6 +49,7 @@ def update_servers():
         encoded = base64.urlsafe_b64encode(bytes(decoded, 'utf-8'))
         full_decoded = '\n'.join(full_decoded)
         full_encoded = base64.urlsafe_b64encode(bytes(full_decoded, 'utf-8'))
+        time.sleep(7200)
     except Exception as e:
         logging.exception(e, stack_info=True)
 
@@ -60,7 +57,6 @@ def update_servers():
 # counter_path = os.path.expanduser('/tmp/counter')
 counter_path = 'memory'
 count = 0
-update_counter = 0
 
 
 def counter(counter_path=counter_path, update=True):
@@ -75,12 +71,6 @@ def counter(counter_path=counter_path, update=True):
                 open(counter_path, 'w').write('0')
             count = int(open(counter_path).readline())
             open(counter_path, 'w').write(str(count + 1))
-
-    global update_counter
-    update_counter += 1
-    if update_counter % PERIOD == 1:
-        update_thread = threading.Thread(target=update_servers)
-        update_thread.start()
     return count
 
 
@@ -272,5 +262,14 @@ def page_not_found(e):
 def gift():
     return birthday_2017
 
+
+update_thread = threading.Thread(target=update_servers)
+scheduler.add_job(update_servers, "cron", minute=random.randint(1, 15), second=random.randint(0, 59))
+
+if not os.environ.get('TEST', False):
+    update_thread.start()
+    scheduler.start()
+else:
+    print('Testing mode on:', os.environ.get('TEST', False))
 
 print('部署完成')
